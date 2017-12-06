@@ -12,3 +12,4 @@ You can use it to:<br>
 Document:<br>
 (1) puppet.py main doc<br>
 (2) puppet_test.ipynb notebook for example<br>
+(3) eval.py evaluate mAP using OKS <br>

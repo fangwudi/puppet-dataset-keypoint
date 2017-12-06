@@ -61,7 +61,7 @@ class PuppetDataset(object):
         # puppet begin
         self.order = order
         # (1)decide min max control size of object
-        puppetsize = 23  # just an estimate
+        puppetsize = 24  # just an estimate
         self.minsize = 1
         self.maxsize = max(self.minsize, min(height, width)//puppetsize)
         # (2)decide min max number of object
@@ -73,7 +73,7 @@ class PuppetDataset(object):
         n = len(plans)  # n puppet
         # keypoint annotation
         kp = [plan[1][:4] for plan in plans]
-        kpv = np.zeros([n, 4], dtype=np.uint8)  # visible
+        kpv = np.ones([n, 4], dtype=np.uint8)  # visible
         # generate bg
         bg_color = np.array([random.randint(0, 255)
                              for _ in range(3)]).reshape([1, 1, 3])
@@ -88,8 +88,9 @@ class PuppetDataset(object):
                                              plan, mask_flag=True)
         # Handle occlusions
         occlusion = np.logical_not(mask[:, :, -1]).astype(np.uint8)
-        for i in range(n-2, -1, -1):
-            mask[:, :, i] = mask[:, :, i] * occlusion
+        for i in range(n-1, -1, -1):
+            if i != n-1:
+                mask[:, :, i] = mask[:, :, i] * occlusion
             for j in range(4):
                 x = kp[i][j][0]
                 y = kp[i][j][1]
@@ -97,10 +98,18 @@ class PuppetDataset(object):
                 if x < 0 or y < 0 or x >= self.width or y >= self.height:
                     kpv[i][j] = 0
                 else:
-                    kpv[i][j] = mask[x, y, i]
+                    kpv[i][j] = mask[y, x, i]  # image height width
             occlusion = np.logical_and(occlusion, np.logical_not(mask[:, :, i]))
         # merge kp annotation
-        annkp = (kp, kpv)
+        # [{"keypoints": [x1, y1, v1, ..., xk, yk, vk], "size": int},...]
+        annkp = []
+        for i, plan in enumerate(plans):
+            keypoint = []
+            for j, item in enumerate(kp[i]):
+                keypoint.extend([item[0], item[1], kpv[i][j]])
+            y = {'size': plan[0],
+                 'keypoints': keypoint}
+            annkp.append(y)
         return image, mask, annkp
 
     @staticmethod
@@ -139,13 +148,13 @@ class PuppetDataset(object):
 
     def plan_puppet(self, size):
         # init part lenth
-        pl1 = 8  # arm
+        pl1 = 9  # arm
         pl2 = 9  # body
         pl3 = 7  # leg
         # decide joint angles
-        range_ja1 = list(range(-45, 45)) + list(range(135, 225))
-        range_ja2 = list(range(45, 135))
-        range_ja3 = list(range(60, 120))
+        range_ja1 = list(range(-25, 45)) + list(range(135, 205))
+        range_ja2 = list(range(65, 115))
+        range_ja3 = list(range(55, 125))
         ja1 = random.choice(range_ja1)
         ja2 = random.choice(range_ja2)
         ja3 = random.choice(range_ja3)
